@@ -7,14 +7,14 @@ from random import random
 
 class Window:
 	def __init__(self, x, y):
-		self.xmax=float(x)
-		self.ymax=float(y)
-		self.viewpoint = Point(0,0,.9)
+		self.xmax=int(x)
+		self.ymax=int(y)
+		self.viewpoint = Point(0,0,1.2)
 		
 		self.window = [[Tuple(0,0,0) for i in range(y)] for i in range(x)]
 	
 	def getRay(self, x,y):
-		p = Point((x/self.xmax)-0.5, (y/self.ymax)-0.5, 0.0)
+		p = Point((float(x)/self.xmax)-0.5, (float(y)/self.ymax)-0.5, 0.0)
 		
 		r = Ray()
 		
@@ -23,16 +23,19 @@ class Window:
 		
 		return r
 	
-	def outputPPM(self):
-		print("P3\n{} {}\n255".format(int(self.xmax), int(self.ymax)))
+	def outputPPM(self, fname="a.ppm"):
+		f = open(fname, mode='w')
+		f.write("P3\n{} {}\n255\n".format(self.xmax, self.ymax))
 		
-		for i in range(int(self.xmax)):
-			for j in range(int(self.ymax)):
+		for j in range(self.ymax-1, -1, -1):
+			for i in range(self.xmax):
 				color = self.window[i][j].v
-				color = [min(int(color[k]*255.0), 255) for k in range(3)]
-				print "{} {} {} ".format(color[0],color[1], color[2]),  
+				color = [min(int(k*255.0), 255) for k in self.window[i][j].v]
+				f.write( "{} {} {} ".format(color[0],color[1], color[2]))
 			
-			print("")
+			f.write("\n")
+		
+		f.close()
 	
 
 
@@ -41,7 +44,6 @@ class Tracer:
 		self.objects = []
 		self.lights = []
 		self.w = Window(x,y)
-		self.recursionLimit=10
 	
 	def addObject(self, o):
 		self.objects.append(o)	
@@ -69,7 +71,6 @@ class Tracer:
 			for l in self.lights:
 				inshade = False
 				Lray = Ray(intersectPoint, Vector(*(l.pos-intersectPoint).v))
-				Ldist = Lray.d.length()
 				Lray.d.normalize()
 				#print "lray: ", Lray.d.v, Lray.o.v
 				for obj in self.objects:
@@ -84,24 +85,23 @@ class Tracer:
 					Lscale = normal.dot(Lray.d)
 					#print "normal dot lray", normal.dot(Lray.d)
 					#print "normal: ", normal.v, "Lray.d", Lray.d.v
-					if Lscale >0.01:
+					if Lscale >0.0001:
 						intensityList[-1].intensity+= l.intensity.scale(Lscale)
 				else:
 					intensityList[-1].intensity+=Tuple(.1,.1,.1)
 			
 			#so after we do all the lights then we can use the reflected ray to trace again
-			#if recursion < self.recursionLimit:
-			#	self._trace(rr, intensityList, recursion+1)
-					
+			if recursion > 0:
+				self._trace(rr, intensityList, recursion-1)
 					
 	
 	def trace(self):
-		for i in range(int(self.w.xmax)):
-			for j in range(int(self.w.ymax)):
+		for i in range(self.w.xmax):
+			for j in range(self.w.ymax):
 				#print i,j, 
 				r = self.w.getRay(i,j)
 				intensityList = []
-				self._trace(r, intensityList, 8)
+				self._trace(r, intensityList, 16)
 				intensity = Tuple(0.0,0.0,0.0)
 				while( len(intensityList) > 0 ):
 					curin = intensityList.pop()
@@ -111,19 +111,19 @@ class Tracer:
 				self.w.window[i][j] = intensity
 				
 				
-t = Tracer(700,700)
-for i in range(10):
-	t.addObject(Sphere( Point(2.5-random()*5.,2.5-random()*5,-13.0+random()*5), random()*0.3+1., 
-		Tuple(random()*.5+.4,random()*.5+.4,random()*.5+.4)))
-#t.addObject(Sphere( Point(1.0,0.0,-10.0), 2.0, Tuple(1,0,0)))
-#t.addObject(Sphere( Point(-3.0,0.0,-10.0), 2.0, Tuple(1,0,1)))
-#t.addObject(Sphere( Point(3.5,-0.0,-8.0), .25, Tuple(.2,.5,1)))
+t = Tracer(400,400)
+
+t.addObject(Sphere( Point(0.0,2.5,-10.0), 2.0, Tuple(1,0,0)))
+t.addObject(Sphere( Point(-2.2,-1.2,-10.0), 2.0, Tuple(0,1,0)))
+t.addObject(Sphere( Point(2.2,-1.2,-10.0), 2.0, Tuple(0,0,1)))
+pn = Vector(0,1,1)
+pn.normalize()
+t.addObject(Plane( pn, 13.0, Tuple(.5,.2,0))) 
+
+
 #t.addLight(Light(Point(-10,-10,-15.5), Tuple(.4,.4,.4)))
-t.addLight(Light(Point(10.,10.,45.), Tuple(.8,.8,.8)))
+t.addLight(Light(Point(10.,10.,45.), Tuple(.7,.7,.7)))
 
 t.trace()
 
 t.w.outputPPM()
-
-
-

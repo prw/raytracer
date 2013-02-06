@@ -13,6 +13,39 @@ class Object(object):
 	
 	def intersect(self, ray):
 		pass
+	
+	def getReflectedNormal(self, ray, t):
+		pass
+
+class Tri(Object):
+	def __init__(self, normal, d, color, diffuse=1.0, specular=0.0, shinyness=1.0):
+		super(Tri,self).__init__(color, diffuse, specular, shinyness)
+
+class Plane(Object):
+	def __init__(self, normal, d, color, diffuse=1.0, specular=0.0, shinyness=1.0):
+		super(Plane,self).__init__(color, diffuse, specular, shinyness)
+		self.normal = normal
+		self.d = d
+	
+	def intersect(self, ray):
+		ndotd = self.normal.dot(ray.d)
+		if ndotd != 0:
+			return -(self.normal.dot(ray.o) + self.d) / ndotd
+		
+		return -1	
+	
+	def getReflectedNormal(self, ray, t):
+		p = Point(*(ray.d.scale(t)).v )+ray.o
+		normal = self.normal
+		
+		rr = Ray()
+		
+		rr.o=p
+		
+		rr.d = ray.d - normal.scale(2*ray.d.dot(normal))
+		rr.d=Vector(*rr.d.v)
+		return rr, normal
+		
 
 class Sphere(Object):
 	def __init__(self, origin, r, color, diffuse=1.0, specular=0.0, shinyness=1.0):
@@ -28,7 +61,7 @@ class Sphere(Object):
 		b = b[0]+b[1]+b[2]
 		b*=2.0
 		
-		c = dist[0]**2+dist[1]**2+dist[2]**2 - self.r**2
+		c = dist[0]*dist[0]+dist[1]*dist[1]+dist[2]*dist[2] - self.r**2
 		
 		disc = b*b-4.0*c
 		if disc <= 0:
@@ -48,7 +81,7 @@ class Sphere(Object):
 		#then get reflected ray, origin=pt
 		p = Point(*(ray.d.scale(t)).v )+ray.o
 		normal = Vector(*(p-self.origin).v)
-
+		
 		normal.normalize()
 		
 		rr = Ray()
